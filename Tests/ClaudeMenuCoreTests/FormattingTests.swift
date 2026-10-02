@@ -41,14 +41,28 @@ import Testing
     }
 
     @Test func allLimitsInDropdownOrder() {
-        #expect(TitleFormatter.content(mode: .allLimits, limits: limits)
-                == .text([TitleSegment("11%", .normal), TitleSegment("\u{2009}|\u{2009}", nil), TitleSegment("18%", .normal),
-                          TitleSegment("\u{2009}|\u{2009}", nil), TitleSegment("91%", .critical)]))
+        let calm = [limit("session", 11), limit("weekly_all", 18)]
+        #expect(TitleFormatter.content(mode: .allLimits, limits: calm)
+                == .text("11%\u{2009}|\u{2009}18%"))
     }
 
     @Test func allLimitsWithSingleLimit() {
-        #expect(TitleFormatter.content(mode: .allLimits, limits: [limit("session", 5)])
-                == .text([TitleSegment("5%", .normal)]))
+        #expect(TitleFormatter.content(mode: .allLimits, limits: [limit("session", 5)]) == .text("5%"))
+    }
+
+    @Test func warningSignPrefixesTheWorstLimit() {
+        let warning = [limit("session", 11), limit("weekly_all", 80)]
+        #expect(TitleFormatter.content(mode: .allLimits, limits: warning)
+                == .text("⚠️ 11%\u{2009}|\u{2009}80%"))
+        // Severity reported by the server counts even when the percentage looks calm.
+        let flagged = [limit("session", 11, severity: "warning")]
+        #expect(TitleFormatter.content(mode: .allLimits, limits: flagged) == .text("⚠️ 11%"))
+    }
+
+    @Test func alarmPrefixesACriticalLimit() {
+        #expect(TitleFormatter.content(mode: .allLimits, limits: limits)
+                == .text("🚨 11%\u{2009}|\u{2009}18%\u{2009}|\u{2009}91%"))
+        #expect(TitleFormatter.content(mode: .highestLimit, limits: limits) == .text("🚨 91%"))
     }
 
     @Test func unknownStoredModeFallsBackToAllLimits() {
@@ -58,8 +72,8 @@ import Testing
     }
 
     @Test func highestLimit() {
-        #expect(TitleFormatter.content(mode: .highestLimit, limits: limits)
-                == .text([TitleSegment("91%", .critical)]))
+        #expect(TitleFormatter.content(mode: .highestLimit, limits: [limit("session", 11), limit("weekly_all", 18)])
+                == .text("18%"))
     }
 
     @Test func iconOnlyUsesWorstSeverity() {

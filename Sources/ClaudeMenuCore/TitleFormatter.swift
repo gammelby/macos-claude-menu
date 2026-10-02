@@ -18,20 +18,11 @@ public enum TitleMode: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-public struct TitleSegment: Equatable, Sendable {
-    public var text: String
-    /// `nil` for separators, which use the plain menubar text color (full opacity so they stay visible on the translucent menubar).
-    public var severity: Severity?
-
-    public init(_ text: String, _ severity: Severity?) {
-        self.text = text
-        self.severity = severity
-    }
-}
-
 public enum TitleContent: Equatable, Sendable {
     case placeholder
-    case text([TitleSegment])
+    /// Drawn in the plain menubar text color. Colored digits are hard to read against the
+    /// translucent menubar, so a leading emoji carries the severity instead.
+    case text(String)
     case icon(symbol: String, severity: Severity)
 }
 
@@ -40,23 +31,26 @@ public enum TitleFormatter {
         guard let highest = limits.max(by: { $0.percent < $1.percent }) else { return .placeholder }
         switch mode {
         case .allLimits:
-            var segments: [TitleSegment] = []
-            for (i, limit) in limits.enumerated() {
-                // Thin spaces give the pipes a little air without widening the item much.
-                if i > 0 { segments.append(TitleSegment("\u{2009}|\u{2009}", nil)) }
-                segments.append(segment(limit))
-            }
-            return .text(segments)
+            // Thin spaces give the pipes a little air without widening the item much.
+            let percentages = limits.map { Formatting.percent($0.percent) }.joined(separator: "\u{2009}|\u{2009}")
+            return .text(prefix(worst(limits)) + percentages)
         case .highestLimit:
-            return .text([segment(highest)])
+            return .text(prefix(worst(limits)) + Formatting.percent(highest.percent))
         case .iconOnly:
-            let worst = limits.map(\.severity).max() ?? .normal
-            return .icon(symbol: gaugeSymbol(percent: highest.percent), severity: worst)
+            return .icon(symbol: gaugeSymbol(percent: highest.percent), severity: worst(limits))
         }
     }
 
-    static func segment(_ limit: UsageLimit) -> TitleSegment {
-        TitleSegment(Formatting.percent(limit.percent), limit.severity)
+    static func worst(_ limits: [UsageLimit]) -> Severity {
+        limits.map(\.severity).max() ?? .normal
+    }
+
+    static func prefix(_ severity: Severity) -> String {
+        switch severity {
+        case .normal: return ""
+        case .warning: return "⚠️ "
+        case .critical: return "🚨 "
+        }
     }
 
     static func gaugeSymbol(percent: Double) -> String {

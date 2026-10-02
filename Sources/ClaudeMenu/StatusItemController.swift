@@ -79,16 +79,10 @@ final class StatusItemController: NSObject {
             button.image = nil
             button.attributedTitle = NSAttributedString(
                 string: "–", attributes: [.font: font, .foregroundColor: NSColor.labelColor])
-        case .text(let segments):
+        case .text(let title):
             button.image = nil
-            let title = NSMutableAttributedString()
-            for segment in segments {
-                title.append(NSAttributedString(string: segment.text, attributes: [
-                    .font: font,
-                    .foregroundColor: segment.severity.map(Self.textColor) ?? NSColor.labelColor,
-                ]))
-            }
-            button.attributedTitle = title
+            button.attributedTitle = NSAttributedString(
+                string: title, attributes: [.font: font, .foregroundColor: NSColor.labelColor])
         case .icon(let symbol, let severity):
             // Monochrome template glyph like other menubar icons, plus a traffic-light dot for the worst limit.
             let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Claude usage")
@@ -105,14 +99,6 @@ final class StatusItemController: NSObject {
         button.toolTip = store.limits.isEmpty
             ? (store.usageError?.message ?? "Claude usage: loading")
             : store.limits.map { "\($0.displayName): \(Formatting.percent($0.percent))" }.joined(separator: "\n")
-    }
-
-    private static func textColor(_ severity: Severity) -> NSColor {
-        switch severity {
-        case .normal: return .labelColor
-        case .warning: return .systemOrange
-        case .critical: return .systemRed
-        }
     }
 
     private static func dotColor(_ severity: Severity) -> NSColor {
