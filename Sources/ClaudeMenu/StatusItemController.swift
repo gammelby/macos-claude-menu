@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 final class StatusItemController: NSObject {
     private let store: UsageStore
-    private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private var item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private var eventMonitors: [Any] = []
 
@@ -21,9 +21,27 @@ final class StatusItemController: NSObject {
         popover.behavior = .applicationDefined
         popover.animates = false
 
+        attachButton()
+        store.onChange = { [weak self] in self?.updateTitle() }
+        updateTitle()
+
+        // The menubar can silently drop our item when displays are added, removed or rearranged
+        // while the process keeps running, so recreate it then.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in MainActor.assumeIsolated { self?.recreateItem() } }
+    }
+
+    private func attachButton() {
         item.button?.target = self
         item.button?.action = #selector(togglePopover)
-        store.onChange = { [weak self] in self?.updateTitle() }
+    }
+
+    private func recreateItem() {
+        closePopover()
+        NSStatusBar.system.removeStatusItem(item)
+        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        attachButton()
         updateTitle()
     }
 
